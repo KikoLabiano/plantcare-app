@@ -7,7 +7,7 @@ const EMPTY_DATA = JSON.stringify({ plants: [], wateringRecords: [], pushSubscri
 async function getOrCreateBlob(): Promise<{ url: string; data: object }> {
   try {
     const meta = await head(BLOB_PATHNAME)
-    const res = await fetch(meta.url)
+    const res = await fetch(`${meta.url}?ts=${Date.now()}`, { cache: 'no-store' })
     const data = await res.json()
     return { url: meta.url, data }
   } catch {

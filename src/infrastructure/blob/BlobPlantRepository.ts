@@ -16,10 +16,11 @@ const API_BASE = '/api'
 // This keeps the Blob SDK (and its secrets) exclusively on the server.
 export class BlobPlantRepository implements PlantRepository {
   private async fetchData(): Promise<BlobData> {
-    const res = await fetch(`${API_BASE}/data`, {
+    const res = await fetch(`${API_BASE}/data?ts=${Date.now()}`, {
       headers: {
         'x-home-token': import.meta.env.VITE_HOME_PIN ?? '1234'
-      }
+      },
+      cache: 'no-store'
     })
     if (!res.ok) throw new Error('Failed to fetch plant data')
     return res.json() as Promise<BlobData>
