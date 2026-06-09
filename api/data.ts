@@ -1,8 +1,55 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { list, put, del } from '@vercel/blob'
+import { Redis } from '@upstash/redis'
+import { list } from '@vercel/blob'
 
-const BLOB_PATHNAME = 'plantcare-data.json'
-const EMPTY_DATA = JSON.stringify({ plants: [], wateringRecords: [], pushSubscriptions: [] })
+const DATA_KEY = 'plantcare:data'
+
+interface PlantData {
+  plants: unknown[]
+  wateringRecords: unknown[]
+  [key: string]: unknown
+}
+
+const EMPTY_DATA: PlantData = { plants: [], wateringRecords: [], pushSubscriptions: [] }
+
+// Supports both env naming schemes: Upstash Marketplace integration
+// (UPSTASH_REDIS_REST_*) and Vercel Redis storage, formerly KV (KV_REST_API_*).
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL ?? '',
+  token: process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN ?? '',
+})
+
+function isValidData(body: unknown): body is Pick<PlantData, 'plants' | 'wateringRecords'> {
+  return (
+    typeof body === 'object' &&
+    body !== null &&
+    Array.isArray((body as PlantData).plants) &&
+    Array.isArray((body as PlantData).wateringRecords)
+  )
+}
+
+// One-time migration: if Redis has no data yet, seed it from the legacy
+// Vercel Blob file so existing plants/records are not lost.
+async function migrateFromBlob(): Promise<PlantData | null> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return null
+  try {
+    const { blobs } = await list({ prefix: 'plantcare-data' })
+    blobs.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())
+    for (const blob of blobs) {
+      try {
+        const res = await fetch(`${blob.url}?ts=${Date.now()}`, { cache: 'no-store' })
+        if (!res.ok) continue
+        const data = await res.json()
+        if (isValidData(data)) return data as PlantData
+      } catch (err) {
+        console.error(`Error reading legacy blob ${blob.url}:`, err)
+      }
+    }
+  } catch (err) {
+    console.error('Legacy blob migration failed:', err)
+  }
+  return null
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Simple PIN auth check
@@ -12,96 +59,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'GET') {
-    // List all blobs starting with 'plantcare-data'
-    const { blobs } = await list({ prefix: 'plantcare-data' })
-
-    if (blobs.length === 0) {
-      // Create initial plantcare-data.json
-      await put(BLOB_PATHNAME, EMPTY_DATA, {
-        access: 'public',
-        contentType: 'application/json',
-        addRandomSuffix: false,
-      })
-      return res.status(200).json(JSON.parse(EMPTY_DATA))
+    let data = await redis.get<PlantData>(DATA_KEY)
+    if (!data) {
+      data = (await migrateFromBlob()) ?? EMPTY_DATA
+      await redis.set(DATA_KEY, data)
     }
-
-    // Sort by uploadedAt descending to get the absolute latest data
-    blobs.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())
-
-    let data = null
-    let latestBlob = null
-
-    // Try to fetch blobs from newest to oldest until one succeeds
-    for (const blob of blobs) {
-      try {
-        const fetchRes = await fetch(`${blob.url}?ts=${Date.now()}`, { cache: 'no-store' })
-        if (!fetchRes.ok) {
-          console.warn(`Failed to fetch blob ${blob.url}: status ${fetchRes.status}`)
-          continue
-        }
-        data = await fetchRes.json()
-        latestBlob = blob
-        break // Succeeded!
-      } catch (err) {
-        console.error(`Error loading or parsing blob ${blob.url}:`, err)
-      }
-    }
-
-    if (!data || !latestBlob) {
-      // Fallback if all blobs failed or couldn't be parsed
-      data = JSON.parse(EMPTY_DATA)
-      await put(BLOB_PATHNAME, EMPTY_DATA, {
-        access: 'public',
-        contentType: 'application/json',
-        addRandomSuffix: false,
-        allowOverwrite: true,
-      })
-      return res.status(200).json(data)
-    }
-
-    // Consolidate/migrate if there are multiple files or if the newest isn't the main file
-    const needsConsolidation = blobs.length > 1 || latestBlob.pathname !== BLOB_PATHNAME
-
-    if (needsConsolidation) {
-      // Overwrite the main file with the latest data
-      await put(BLOB_PATHNAME, JSON.stringify(data), {
-        access: 'public',
-        contentType: 'application/json',
-        addRandomSuffix: false,
-        allowOverwrite: true,
-      })
-
-      // Delete all blobs that are NOT the main BLOB_PATHNAME
-      const toDelete = blobs
-        .filter((b) => b.pathname !== BLOB_PATHNAME)
-        .map((b) => b.url)
-
-      if (toDelete.length > 0) {
-        try {
-          await del(toDelete)
-        } catch (delErr) {
-          console.error('Error deleting old blobs during consolidation:', delErr)
-        }
-      }
-    }
-
     return res.status(200).json(data)
   }
 
   if (req.method === 'PUT') {
-    const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
+    let body: unknown
+    try {
+      body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
+    } catch {
+      return res.status(400).json({ error: 'Invalid JSON body' })
+    }
 
-    // Overwrite the main blob directly
-    await put(BLOB_PATHNAME, body, {
-      access: 'public',
-      contentType: 'application/json',
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    })
+    if (!isValidData(body)) {
+      return res.status(400).json({ error: 'Body must include plants[] and wateringRecords[]' })
+    }
+
+    // Merge over the stored object so fields the client does not manage
+    // (e.g. pushSubscriptions) are preserved.
+    const existing = (await redis.get<PlantData>(DATA_KEY)) ?? EMPTY_DATA
+    await redis.set(DATA_KEY, { ...existing, ...body })
 
     return res.status(200).json({ ok: true })
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
 }
-
