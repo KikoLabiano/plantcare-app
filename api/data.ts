@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { list, put, del, head } from '@vercel/blob'
+import { list, put, del } from '@vercel/blob'
 
 const BLOB_PATHNAME = 'plantcare-data.json'
 const EMPTY_DATA = JSON.stringify({ plants: [], wateringRecords: [], pushSubscriptions: [] })
