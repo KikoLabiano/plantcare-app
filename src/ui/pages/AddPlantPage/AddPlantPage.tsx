@@ -11,11 +11,7 @@ const schema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio'),
   species: z.string().optional(),
   nickname: z.string().optional(),
-  wateringFrequencyDays: z.coerce
-    .number()
-    .int()
-    .min(1, 'Mínimo 1 día')
-    .max(365, 'Máximo 365 días'),
+  wateringFrequencyDays: z.coerce.number().int().min(1, 'Mínimo 1 día').max(365, 'Máximo 365 días'),
   light: z.enum(['low', 'medium', 'high', 'direct']).optional(),
   water: z.enum(['low', 'medium', 'high']).optional(),
   temperatureMin: z.coerce.number().optional(),
@@ -23,7 +19,17 @@ const schema = z.object({
   careNotes: z.string().optional(),
 })
 
-type FormValues = z.infer<typeof schema>
+type FormValues = {
+  name: string
+  species?: string
+  nickname?: string
+  wateringFrequencyDays: number
+  light?: 'low' | 'medium' | 'high' | 'direct'
+  water?: 'low' | 'medium' | 'high'
+  temperatureMin?: number
+  temperatureMax?: number
+  careNotes?: string
+}
 
 const LIGHT_OPTIONS = [
   { value: 'low', label: '🌑 Sombra' },
@@ -45,7 +51,7 @@ export function AddPlantPage() {
   const [aiPrefilled, setAiPrefilled] = useState(false)
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: { wateringFrequencyDays: 7 },
   })
 

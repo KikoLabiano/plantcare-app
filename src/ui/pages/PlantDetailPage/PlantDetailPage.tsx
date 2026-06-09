@@ -29,14 +29,7 @@ export function PlantDetailPage() {
     enabled: !!id,
   })
 
-  const plantsQuery = useQuery({
-    queryKey: ['plants'],
-    queryFn: () => {
-      // reuse cached data
-      return queryClient.getQueryData<Awaited<ReturnType<typeof import('@/core/plants/usecases/GetPlants').GetPlants.prototype.execute>>>(['plants'])
-    },
-    enabled: false,
-  })
+
 
   const plant = queryClient
     .getQueryData<Awaited<ReturnType<typeof import('@/core/plants/usecases/GetPlants').GetPlants.prototype.execute>>>(['plants'])

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { WaterPlant } from '@/core/plants/usecases/WaterPlant'
 import { PlantNotFoundError } from '@/core/shared/errors/DomainError'
 import type { PlantRepository } from '@/core/plants/ports/PlantRepository'
