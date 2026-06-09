@@ -20,7 +20,7 @@ const WATER_LABELS = {
 export function PlantDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { getWateringHistory, waterPlant } = useContainer()
+  const { getWateringHistory, waterPlant, deletePlant } = useContainer()
   const queryClient = useQueryClient()
 
   const historyQuery = useQuery({
@@ -43,6 +43,20 @@ export function PlantDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['watering-history', id] })
     },
   })
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deletePlant.execute(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plants'] })
+      navigate('/dashboard', { replace: true })
+    },
+  })
+
+  const handleDelete = () => {
+    if (window.confirm(`¿Seguro que quieres eliminar a ${plant?.plant.name}? Esta acción no se puede deshacer.`)) {
+      deleteMutation.mutate()
+    }
+  }
 
   if (!plant) {
     return (
@@ -178,6 +192,17 @@ export function PlantDetailPage() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Delete button */}
+      <section style={{ marginTop: 'var(--sp-6)', paddingBottom: 'var(--sp-6)' }}>
+        <button
+          className="btn btn--danger btn--full"
+          onClick={handleDelete}
+          disabled={deleteMutation.isPending}
+        >
+          {deleteMutation.isPending ? 'Eliminando...' : '🗑️ Eliminar planta'}
+        </button>
       </section>
     </main>
   )

@@ -5,6 +5,7 @@ import { GetPlants } from '@/core/plants/usecases/GetPlants'
 import { WaterPlant } from '@/core/plants/usecases/WaterPlant'
 import { GetWateringHistory } from '@/core/plants/usecases/GetWateringHistory'
 import { IdentifyPlantFromImage } from '@/core/plants/usecases/IdentifyPlantFromImage'
+import { DeletePlant } from '@/core/plants/usecases/DeletePlant'
 
 // ─── Infrastructure adapters ─────────────────────────────────────────────────
 const plantRepository = new BlobPlantRepository()
@@ -16,6 +17,7 @@ export interface Container {
   waterPlant: WaterPlant
   getWateringHistory: GetWateringHistory
   identifyPlant: IdentifyPlantFromImage
+  deletePlant: DeletePlant
 }
 
 const container: Container = {
@@ -23,6 +25,7 @@ const container: Container = {
   getPlants: new GetPlants(plantRepository),
   waterPlant: new WaterPlant(plantRepository),
   getWateringHistory: new GetWateringHistory(plantRepository),
+  deletePlant: new DeletePlant(plantRepository),
   // IdentifyPlantFromImage requires PlantIdentifier — injected lazily in Phase 3
   identifyPlant: null as unknown as IdentifyPlantFromImage,
 }

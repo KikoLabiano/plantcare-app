@@ -398,6 +398,15 @@ a {
   border: 1px solid var(--clr-line);
 }
 
+.btn--danger {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.btn--danger:hover {
+  background-color: #fecaca;
+}
+
 .btn--terra {
   background: var(--clr-terra);
   color: #fff;
