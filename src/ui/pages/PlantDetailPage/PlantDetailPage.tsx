@@ -20,7 +20,7 @@ const WATER_LABELS = {
 export function PlantDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { getWateringHistory, waterPlant, deletePlant } = useContainer()
+  const { getPlants, getWateringHistory, waterPlant, deletePlant } = useContainer()
   const queryClient = useQueryClient()
 
   const historyQuery = useQuery({
@@ -29,12 +29,14 @@ export function PlantDetailPage() {
     enabled: !!id,
   })
 
+  const plantsQuery = useQuery({
+    queryKey: ['plants'],
+    queryFn: () => getPlants.execute(),
+  })
 
-
-  const plant = queryClient
-    .getQueryData<Awaited<ReturnType<typeof import('@/core/plants/usecases/GetPlants').GetPlants.prototype.execute>>>(['plants'])
-    ?.plantsWithStatus
-    .find((p) => p.plant.id.value === id)
+  const plant = plantsQuery.data?.plantsWithStatus.find(
+    (p) => p.plant.id.value === id,
+  )
 
   const waterMutation = useMutation({
     mutationFn: () => waterPlant.execute({ plantId: id! }),
@@ -56,6 +58,15 @@ export function PlantDetailPage() {
     if (window.confirm(`¿Seguro que quieres eliminar a ${plant?.plant.name}? Esta acción no se puede deshacer.`)) {
       deleteMutation.mutate()
     }
+  }
+
+  if (plantsQuery.isLoading) {
+    return (
+      <main className="page">
+        <button onClick={() => navigate(-1)} className={styles.back}>← Volver</button>
+        <p className="text-muted text-center">Cargando…</p>
+      </main>
+    )
   }
 
   if (!plant) {
