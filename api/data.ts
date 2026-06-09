@@ -27,11 +27,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Sort by uploadedAt descending to get the absolute latest data
     blobs.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())
-    const latestBlob = blobs[0]
 
-    // Fetch the data from the latest blob (prevent CDN and browser caching)
-    const fetchRes = await fetch(`${latestBlob.url}?ts=${Date.now()}`, { cache: 'no-store' })
-    const data = await fetchRes.json()
+    let data = null
+    let latestBlob = null
+
+    // Try to fetch blobs from newest to oldest until one succeeds
+    for (const blob of blobs) {
+      try {
+        const fetchRes = await fetch(`${blob.url}?ts=${Date.now()}`, { cache: 'no-store' })
+        if (!fetchRes.ok) {
+          console.warn(`Failed to fetch blob ${blob.url}: status ${fetchRes.status}`)
+          continue
+        }
+        data = await fetchRes.json()
+        latestBlob = blob
+        break // Succeeded!
+      } catch (err) {
+        console.error(`Error loading or parsing blob ${blob.url}:`, err)
+      }
+    }
+
+    if (!data || !latestBlob) {
+      // Fallback if all blobs failed or couldn't be parsed
+      data = JSON.parse(EMPTY_DATA)
+      await put(BLOB_PATHNAME, EMPTY_DATA, {
+        access: 'public',
+        contentType: 'application/json',
+        addRandomSuffix: false,
+        allowOverwrite: true,
+      })
+      return res.status(200).json(data)
+    }
 
     // Consolidate/migrate if there are multiple files or if the newest isn't the main file
     const needsConsolidation = blobs.length > 1 || latestBlob.pathname !== BLOB_PATHNAME
@@ -51,7 +77,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .map((b) => b.url)
 
       if (toDelete.length > 0) {
-        await del(toDelete)
+        try {
+          await del(toDelete)
+        } catch (delErr) {
+          console.error('Error deleting old blobs during consolidation:', delErr)
+        }
       }
     }
 
