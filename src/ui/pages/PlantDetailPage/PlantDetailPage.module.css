@@ -1,0 +1,34 @@
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--text-sm);
+  color: var(--clr-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 150ms;
+}
+
+.back:hover { color: var(--clr-ink); }
+
+.waterBtn {
+  background: var(--clr-forest);
+}
+
+.frequencyRow {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--clr-line);
+  border-bottom: 1px solid var(--clr-line);
+}
+
+.careNotes {
+  margin-top: var(--sp-3);
+  font-size: var(--text-sm);
+  color: var(--clr-ink-soft);
+  line-height: var(--leading-loose);
+  font-style: italic;
+}
