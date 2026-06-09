@@ -98,7 +98,6 @@ export async function identifyPlant(imageBase64: string): Promise<PlantIdentific
     body: JSON.stringify({
       images: [imageBase64],
       classification_level: 'species',
-      similar_images: false,
       details: ['common_names', 'watering', 'best_light_condition', 'best_watering', 'description'],
     }),
   })
