@@ -89,7 +89,7 @@ export async function identifyPlant(imageBase64: string): Promise<PlantIdentific
   const apiKey = import.meta.env.VITE_PLANT_ID_API_KEY as string
   if (!apiKey) throw new Error('VITE_PLANT_ID_API_KEY no está configurada')
 
-  const response = await fetch('https://api.plant.id/v3/identification', {
+  const response = await fetch('https://api.plant.id/v3/identification?details=common_names,watering,best_light_condition,best_watering,description', {
     method: 'POST',
     headers: {
       'Api-Key': apiKey,
@@ -97,8 +97,6 @@ export async function identifyPlant(imageBase64: string): Promise<PlantIdentific
     },
     body: JSON.stringify({
       images: [imageBase64],
-      classification_level: 'species',
-      details: ['common_names', 'watering', 'best_light_condition', 'best_watering', 'description'],
     }),
   })
 
