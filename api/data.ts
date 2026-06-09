@@ -16,6 +16,7 @@ async function getOrCreateBlob(): Promise<{ url: string; data: object }> {
       access: 'public',
       contentType: 'application/json',
       addRandomSuffix: false,
+      allowOverwrite: true,
     })
     return { url: blob.url, data: JSON.parse(EMPTY_DATA) }
   }
@@ -40,6 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       access: 'public',
       contentType: 'application/json',
       addRandomSuffix: false,
+      allowOverwrite: true,
     })
 
     return res.status(200).json({ ok: true })
